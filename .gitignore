@@ -1,0 +1,6 @@
+Backups/*
+.env
+*~
+composer.lock
+vendor/
+.idea/
