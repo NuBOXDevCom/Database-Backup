@@ -1,4 +1,4 @@
-#Database Backup
+# Database Backup
 
 Backup script for MySQL databases
 
