@@ -211,7 +211,7 @@ class System
                             </ul>
                            </li>";
 				}
-				$body    .= '</ul>';
+				$body .= '</ul>';
 				$message = (new Swift_Message($this->l10n->translate('mail_subject_on_error')))->setFrom(getenv('MAIL_FROM'),
 					getenv('MAIL_FROM_NAME'))
 																							   ->setTo(getenv('MAIL_TO'),

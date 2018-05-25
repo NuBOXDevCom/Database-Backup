@@ -38,7 +38,7 @@ class FileManager
 	private function _getFiles(): void
 	{
 		$files       = scandir($this->params['files_path'], SCANDIR_SORT_ASCENDING);
-		$this->files = array_filter($files, function ($k) {
+		$this->files = array_filter($files, function($k) {
 			$return = [];
 			if ($k !== '..' && $k !== '.') {
 				$return[] = $k;
