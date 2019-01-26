@@ -1,13 +1,6 @@
 <?php
 
-use NDC\{
-	FileManager, System
-};
+use NDC\DatabaseBackup\System;
 
 require 'vendor/autoload.php';
-$system      = new System();
-$fileManager = new FileManager();
-
-$system->checkRequirements();
-$system->process();
-$fileManager->removeOldFilesByIntervalDays();
+$system = System::getInstance();
