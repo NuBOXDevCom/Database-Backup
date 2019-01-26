@@ -2,9 +2,8 @@
     "name": "nuboxdevcom/database-backup",
     "description": "Backup script for MySQL databases",
     "type": "library",
-    "license": "GPL-3.0",
-    "version": "1.0.0",
-    "time": "2018-01-12",
+    "license": "MIT",
+    "version": "2.0.0",
     "keywords": [
         "php",
         "mysql",
@@ -30,23 +29,26 @@
         "issues": "http://github.com/NuBOXDevCom/Database-Backup/issues",
         "source": "https://www.github.com/NuBOXDevCom/Database-Backup"
     },
-    "minimum-stability": "stable",
+    "minimum-stability": "dev",
     "prefer-stable": true,
     "require": {
-        "php": ">= 7.1",
-        "ifsnop/mysqldump-php": "^2.3",
-        "swiftmailer/swiftmailer": "^6.0",
-        "vlucas/phpdotenv": "^2.4",
+        "php": ">= 7.2",
+        "ifsnop/mysqldump-php": "^2.6",
+        "swiftmailer/swiftmailer": "^6.1",
+        "vlucas/phpdotenv": "^3.2",
         "jbzoo/lang": "^1.0",
-        "symfony/yaml": "^4.0"
+        "symfony/yaml": "^4.2"
     },
     "autoload": {
         "psr-4": {
-            "NDC\\": "src/"
+            "NDC\\DatabaseBackup\\": "src/"
         }
     },
     "scripts": {
-        "post-install-cmd": "php -r \"copy('.env-dist', '.env');\"",
-        "post-update-cmd": "@composer dumpautoload -o"
+        "post-install-cmd": "php -r \"copy('.env-dist', '.env');\""
+    },
+    "config": {
+        "optimize-autoloader": true,
+        "sort-packages": true
     }
 }
