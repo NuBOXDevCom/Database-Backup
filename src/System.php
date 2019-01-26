@@ -1,6 +1,6 @@
 <?php
 
-namespace NDC;
+namespace NDC\DatabaseBackup;
 
 use const DIRECTORY_SEPARATOR;
 use function {
@@ -21,7 +21,7 @@ use Swift_SmtpTransport;
 
 /**
  * Class System
- * @package NDC
+ * @package NDC\DatabaseBackup
  */
 class System
 {

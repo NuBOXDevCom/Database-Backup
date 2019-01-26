@@ -1,12 +1,12 @@
 <?php
 
-namespace NDC;
+namespace NDC\DatabaseBackup;
 
 use function getenv;
 
 /**
  * Class FileManager
- * @package NDC
+ * @package NDC\DatabaseBackup
  */
 class FileManager
 {

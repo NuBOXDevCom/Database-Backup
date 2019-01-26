@@ -37,7 +37,8 @@
         "swiftmailer/swiftmailer": "^6.1",
         "vlucas/phpdotenv": "^3.2",
         "jbzoo/lang": "^1.0",
-        "symfony/yaml": "^4.2"
+        "symfony/yaml": "^4.2",
+        "ext-pdo": "*"
     },
     "autoload": {
         "psr-4": {
