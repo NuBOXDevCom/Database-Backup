@@ -2,9 +2,7 @@
     "name": "nuboxdevcom/database-backup",
     "description": "Backup script for MySQL databases",
     "type": "library",
-    "license": "GPL-3.0",
-    "version": "1.0.0",
-    "time": "2018-01-12",
+    "license": "MIT",
     "keywords": [
         "php",
         "mysql",
