@@ -26,7 +26,7 @@ class System
     /**
      * @var Dotenv
      */
-    protected $env;
+    private $env;
     /**
      * @var array
      */
@@ -34,7 +34,7 @@ class System
     /**
      * @var bool
      */
-    protected $isCli = false;
+    private $isCli;
     /**
      * @var array
      */

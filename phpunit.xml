@@ -17,24 +17,25 @@
         </whitelist>
     </filter>
     <php>
-        <env name="MAIL_FROM" value="phpunit@mytestcase.com"/>
-        <env name="MAIL_FROM_NAME" value="PHPUnit for DatabaseBackup"/>
-        <env name="MAIL_TO" value="admin@mywebsite.com"/>
-        <env name="MAIL_TO_NAME" value="Administrator website"/>
-        <env name="MAIL_SMTP_HOST" value="localhost"/>
-        <env name="MAIL_SMTP_PORT" value="25"/>
-        <env name="MAIL_SMTP_USER" value=""/>
-        <env name="MAIL_SMTP_PASSWORD" value=""/>
-        <env name="MAIL_SEND_ON_ERROR" value="0"/>
-        <env name="MAIL_SEND_ON_SUCCESS" value="0"/>
-        <env name="MAIL_SEND_WITH_BACKUP_FILE" value="0"/>
-        <env name="DB_HOST" value="localhost"/>
-        <env name="DB_USER" value="root"/>
-        <env name="DB_PASSWORD" value="root"/>
-        <env name="DB_EXCLUDE_DATABASES" value="information_schema,mysql,performance_schema"/>
-        <env name="FILES_DAYS_HISTORY" value="3"/>
-        <env name="FILES_PATH_TO_SAVE_BACKUP" value="./Backups"/>
-        <env name="LANGUAGE" value="en"/>
-        <env name="ALLOW_EXECUTE_IN_WEB_BROWSER" value="0"/>
+        <env name="MAIL_FROM" value="phpunit@mytestcase.com" force="true"/>
+        <env name="MAIL_FROM_NAME" value="PHPUnit for DatabaseBackup" force="true"/>
+        <env name="MAIL_TO" value="admin@mywebsite.com" force="true"/>
+        <env name="MAIL_TO_NAME" value="Administrator website" force="true"/>
+        <env name="MAIL_SMTP_HOST" value="localhost" force="true"/>
+        <env name="MAIL_SMTP_PORT" value="25" force="true"/>
+        <env name="MAIL_SMTP_USER" value="" force="true"/>
+        <env name="MAIL_SMTP_PASSWORD" value="" force="true"/>
+        <env name="MAIL_SEND_ON_ERROR" value="0" force="true"/>
+        <env name="MAIL_SEND_ON_SUCCESS" value="0" force="true"/>
+        <env name="MAIL_SEND_WITH_BACKUP_FILE" value="0" force="true"/>
+        <env name="DB_HOST" value="localhost" force="true"/>
+        <env name="DB_USER" value="root" force="true"/>
+        <env name="DB_PASSWORD" value="root" force="true"/>
+        <env name="DB_EXCLUDE_DATABASES" value="information_schema,mysql,performance_schema" force="true"/>
+        <env name="FILES_DAYS_HISTORY" value="3" force="true"/>
+        <env name="FILES_PATH_TO_SAVE_BACKUP" value="./Backups" force="true"/>
+        <env name="LANGUAGE" value="en" force="true"/>
+        <env name="ALLOW_EXECUTE_IN_WEB_BROWSER" value="0" force="true"/>
+        <env name="APP_TEST" value="1" force="true"/>
     </php>
 </phpunit>

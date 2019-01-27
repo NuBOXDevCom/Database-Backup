@@ -31,7 +31,7 @@
   "minimum-stability": "dev",
   "prefer-stable": true,
   "require": {
-    "php": ">= 7.2",
+    "php": ">= 7.2.0",
     "ifsnop/mysqldump-php": "^2.6",
     "swiftmailer/swiftmailer": "^6.1",
     "vlucas/phpdotenv": "^3.2",
@@ -40,10 +40,7 @@
     "ext-pdo": "*"
   },
   "require-dev": {
-    "roave/security-advisories": "dev-master",
-    "phpunit/phpunit": "^7.5",
-    "fzaninotto/faker": "1.8.*",
-    "mockery/mockery": "^1.2"
+    "roave/security-advisories": "dev-master"
   },
   "autoload": {
     "psr-4": {
@@ -53,27 +50,12 @@
       "src/helpers.php"
     ]
   },
-  "autoload-dev": {
-    "classmap": [
-      "tests/TestCase.php"
-    ],
-    "psr-4": {
-      "Test\\": "tests/"
-    }
-  },
   "scripts": {
-    "post-install-cmd": "php -r \"copy('.env-dist', '.env');\"",
-    "coverage": [
-      "phpunit --process-isolation --testdox --coverage-html reports/clover_html"
-    ],
-    "tests": [
-      "phpunit --process-isolation --testdox"
-    ]
+    "post-install-cmd": "php -r \"copy('.env-dist', '.env');\""
   },
   "config": {
     "optimize-autoloader": true,
     "preferred-install": "dist",
-    "sort-packages": true,
-    "process-timeout": 0
+    "sort-packages": true
   }
 }
