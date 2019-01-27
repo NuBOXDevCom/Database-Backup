@@ -4,3 +4,4 @@ Backups/*
 composer.lock
 vendor/
 .idea/
+reports/

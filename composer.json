@@ -41,7 +41,9 @@
   },
   "require-dev": {
     "roave/security-advisories": "dev-master",
-    "phpunit/phpunit": "^7.5"
+    "phpunit/phpunit": "^7.5",
+    "fzaninotto/faker": "1.8.*",
+    "mockery/mockery": "^1.2"
   },
   "autoload": {
     "psr-4": {
@@ -52,13 +54,26 @@
     ]
   },
   "autoload-dev": {
-    "Tests\\": "tests/"
+    "classmap": [
+      "tests/TestCase.php"
+    ],
+    "psr-4": {
+      "Test\\": "tests/"
+    }
   },
   "scripts": {
-    "post-install-cmd": "php -r \"copy('.env-dist', '.env');\""
+    "post-install-cmd": "php -r \"copy('.env-dist', '.env');\"",
+    "coverage": [
+      "phpunit --process-isolation --testdox --coverage-html reports/clover_html"
+    ],
+    "tests": [
+      "phpunit --process-isolation --testdox"
+    ]
   },
   "config": {
     "optimize-autoloader": true,
-    "sort-packages": true
+    "preferred-install": "dist",
+    "sort-packages": true,
+    "process-timeout": 0
   }
 }

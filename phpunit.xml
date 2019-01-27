@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<phpunit xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:noNamespaceSchemaLocation="http://schema.phpunit.de/7.5/phpunit.xsd"
+         bootstrap="vendor/autoload.php"
+         colors="true">
+    <testsuites>
+        <testsuite name="Project Test Suite">
+            <directory>./tests</directory>
+        </testsuite>
+    </testsuites>
+    <!-- <logging>
+      <log type="coverage-html" target="./report" lowUpperBound="50" highLowerBound="80" />
+    </logging> -->
+    <filter>
+        <whitelist processUncoveredFilesFromWhitelist="true">
+            <directory suffix=".php">./src</directory>
+        </whitelist>
+    </filter>
+    <php>
+        <env name="MAIL_FROM" value="phpunit@mytestcase.com"/>
+        <env name="MAIL_FROM_NAME" value="PHPUnit for DatabaseBackup"/>
+        <env name="MAIL_TO" value="admin@mywebsite.com"/>
+        <env name="MAIL_TO_NAME" value="Administrator website"/>
+        <env name="MAIL_SMTP_HOST" value="localhost"/>
+        <env name="MAIL_SMTP_PORT" value="25"/>
+        <env name="MAIL_SMTP_USER" value=""/>
+        <env name="MAIL_SMTP_PASSWORD" value=""/>
+        <env name="MAIL_SEND_ON_ERROR" value="0"/>
+        <env name="MAIL_SEND_ON_SUCCESS" value="0"/>
+        <env name="MAIL_SEND_WITH_BACKUP_FILE" value="0"/>
+        <env name="DB_HOST" value="localhost"/>
+        <env name="DB_USER" value="root"/>
+        <env name="DB_PASSWORD" value="root"/>
+        <env name="DB_EXCLUDE_DATABASES" value="information_schema,mysql,performance_schema"/>
+        <env name="FILES_DAYS_HISTORY" value="3"/>
+        <env name="FILES_PATH_TO_SAVE_BACKUP" value="./Backups"/>
+        <env name="LANGUAGE" value="en"/>
+        <env name="ALLOW_EXECUTE_IN_WEB_BROWSER" value="0"/>
+    </php>
+</phpunit>
