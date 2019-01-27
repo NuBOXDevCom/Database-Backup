@@ -1,4 +1,4 @@
-Backups/*
+Backups/
 .env
 *~
 composer.lock
