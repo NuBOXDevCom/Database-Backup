@@ -10,12 +10,19 @@ use Dotenv\{
 use Exception;
 use Ifsnop\Mysqldump\Mysqldump;
 use JBZoo\Lang\Lang;
+use League\Flysystem\{
+    Adapter\Local,
+    AdapterInterface,
+    Filesystem
+};
 use PDO;
-use RuntimeException;
-use Swift_Attachment;
-use Swift_Mailer;
-use Swift_Message;
-use Swift_SmtpTransport;
+use \{
+    RuntimeException,
+    Swift_Attachment,
+    Swift_Mailer,
+    Swift_Message,
+    Swift_SmtpTransport
+};
 
 /**
  * Class System
@@ -30,7 +37,7 @@ class System
     /**
      * @var array
      */
-    protected $errors = [];
+    private $errors = [];
     /**
      * @var bool
      */
@@ -38,33 +45,43 @@ class System
     /**
      * @var array
      */
-    protected $files = [];
+    private $files = [];
     /**
      * @var Lang
      */
-    protected $l10n;
+    private $l10n;
 
     /**
      * @var System|null
      */
     private static $_instance;
+    /**
+     * @var AdapterInterface
+     */
+    private $adapter;
 
     /**
+     * @param AdapterInterface $adapter
+     * @param array $adapterOptions
      * @return System|null
+     * @throws \League\Flysystem\FileNotFoundException
      */
-    public static function getInstance(): ?System
+    public static function getInstance(?AdapterInterface $adapter = null, array $adapterOptions = []): ?System
     {
 
         if (self::$_instance === null) {
-            self::$_instance = new System();
+            self::$_instance = new System($adapter, $adapterOptions);
         }
         return self::$_instance;
     }
 
     /**
      * System constructor.
+     * @param $adapter
+     * @param $adapterOptions
+     * @throws \League\Flysystem\FileNotFoundException
      */
-    private function __construct()
+    private function __construct(?AdapterInterface $adapter, array $adapterOptions)
     {
         $this->isCli = PHP_SAPI === 'cli';
         try {
@@ -74,7 +91,11 @@ class System
         } catch (\JBZoo\Path\Exception $e) {
             throw new RuntimeException($e);
         }
-        FileManager::getInstance();
+        if ($adapter === null) {
+            $adapter = new Local(env('FILES_PATH_TO_SAVE_BACKUP'));
+        }
+        $this->adapter = new Filesystem($adapter, $adapterOptions);
+        env('FILES_DAYS_HISTORY', 3) > 0 ?: $this->removeOldFilesByIntervalDays();
     }
 
     /**
@@ -84,16 +105,14 @@ class System
      * @throws \JBZoo\Lang\Exception
      * @throws \JBZoo\Path\Exception
      */
-    private function loadConfigurationEnvironment(): void
+    public function loadConfigurationEnvironment(): void
     {
-        if (getenv('APP_TEST') !== '1') {
-            if (!file_exists(dirname(__DIR__) . DIRECTORY_SEPARATOR . '.env')) {
-                throw new RuntimeException('Please configure this script with .env file');
-            }
-            $this->env = Dotenv::create(dirname(__DIR__), '.env');
-            $this->env->overload();
-            $this->checkRequirements();
+        if (!file_exists(dirname(__DIR__) . DIRECTORY_SEPARATOR . '.env')) {
+            throw new RuntimeException('Please configure this script with .env file');
         }
+        $this->env = Dotenv::create(dirname(__DIR__), '.env');
+        $this->env->overload();
+        $this->checkRequirements();
         $this->l10n = new Lang(env('LANGUAGE', 'en'));
         $this->l10n->load(dirname(__DIR__) . DIRECTORY_SEPARATOR . 'i18n', null, 'yml');
         if (!$this->isCli && !(bool)env('ALLOW_EXECUTE_IN_WEB_BROWSER', false)) {
@@ -113,18 +132,8 @@ class System
             'DB_HOST',
             'DB_USER',
             'DB_PASSWORD',
-            'MAIL_FROM',
-            'MAIL_FROM_NAME',
-            'MAIL_TO',
-            'MAIL_TO_NAME',
-            'MAIL_SEND_ON_ERROR',
-            'MAIL_SEND_ON_SUCCESS',
-            'MAIL_SMTP_HOST',
-            'MAIL_SMTP_PORT',
             'FILES_DAYS_HISTORY',
-            'FILES_PATH_TO_SAVE_BACKUP',
-            'LANGUAGE',
-            'ALLOW_EXECUTE_IN_WEB_BROWSER'
+            'DIRECTORY_TO_SAVE_BACKUP'
         ])->notEmpty();
     }
 
@@ -164,8 +173,12 @@ class System
                     $dumper = new Mysqldump('mysql:host=' . env('DB_HOST',
                             'localhost') . ';dbname=' . $database->Database . ';charset=UTF8',
                         env('DB_USER', 'root'), env('DB_PASSWORD', ''));
-                    $dumper->start(env('FILES_PATH_TO_SAVE_BACKUP', './Backups') . DIRECTORY_SEPARATOR . $file_format);
-                    $this->files[] = env('FILES_PATH_TO_SAVE_BACKUP', './Backups') . DIRECTORY_SEPARATOR . $file_format;
+                    $dumper->start('tmp' . DIRECTORY_SEPARATOR . $file_format);
+                    $this->adapter->copy(env('DIRECTORY_TO_SAVE_BACKUP',
+                            'MySQLBackups') . DIRECTORY_SEPARATOR . 'tmp' . DIRECTORY_SEPARATOR . $file_format,
+                        env('DIRECTORY_TO_SAVE_BACKUP', 'MySQLBackups'));
+                    $this->adapter->delete(env('DIRECTORY_TO_SAVE_BACKUP',
+                            'MySQLBackups') . DIRECTORY_SEPARATOR . 'tmp' . DIRECTORY_SEPARATOR . $file_format);
                 } catch (Exception $e) {
                     $this->errors[] = [
                         'dbname' => $database->Database,
@@ -184,7 +197,7 @@ class System
      */
     private function parseAndSanitize(string $data)
     {
-        $results = explode(',', $data);
+        $results = explode(',', preg_replace('/\s+/', '', $data));
         if (\count($results) > 1) {
             foreach ($results as $k => $v) {
                 $results[$k] = trim($v);
@@ -198,7 +211,7 @@ class System
     }
 
     /**
-     * Send a mail if error or success backup database
+     * Send a mail if error or success backup database(s)
      */
     private function sendMail(): void
     {
@@ -220,7 +233,7 @@ class System
                     ->setCharset('utf-8')
                     ->setContentType('text/html');
                 if ((bool)env('MAIL_SEND_WITH_BACKUP_FILE', false)) {
-                    foreach ($this->files as $file) {
+                    foreach ($this->adapter->listFiles() as $file) {
                         $attachment = Swift_Attachment::fromPath($file)->setContentType('application/sql');
                         $message->attach($attachment);
                     }
@@ -248,6 +261,21 @@ class System
                 ->setCharset('utf-8')
                 ->setContentType('text/html');
             $mailer->send($message);
+        }
+    }
+
+    /**
+     * @throws \League\Flysystem\FileNotFoundException
+     */
+    private function removeOldFilesByIntervalDays(): void
+    {
+        $files = $this->adapter->listContents();
+        foreach ($files as $file) {
+            $absoluteFile = $file['path'] . DIRECTORY_SEPARATOR . $file['basename'];
+            $filetime = $this->adapter->getTimestamp($absoluteFile);
+            if ($filetime < strtotime("-{$this->params['days_interval']} days")) {
+                $this->adapter->delete($absoluteFile);
+            }
         }
     }
 }

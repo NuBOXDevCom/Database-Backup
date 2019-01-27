@@ -13,7 +13,9 @@
     "database",
     "opensource",
     "free",
-    "script"
+    "script",
+    "flysystem",
+    "dump"
   ],
   "homepage": "https://www.github.com/NuBOXDevCom/Database-Backup",
   "authors": [
@@ -37,6 +39,8 @@
     "vlucas/phpdotenv": "^3.2",
     "jbzoo/lang": "^1.0",
     "symfony/yaml": "^4.2",
+    "league/flysystem": "^1.0",
+    "league/flysystem-aws-s3-v3": "^1.0",
     "ext-pdo": "*"
   },
   "require-dev": {
