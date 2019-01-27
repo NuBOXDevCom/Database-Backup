@@ -131,9 +131,7 @@ class System
         return $this->env->required([
             'DB_HOST',
             'DB_USER',
-            'DB_PASSWORD',
-            'FILES_DAYS_HISTORY',
-            'DIRECTORY_TO_SAVE_BACKUP'
+            'DB_PASSWORD'
         ])->notEmpty();
     }
 
