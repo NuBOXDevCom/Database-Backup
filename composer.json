@@ -3,7 +3,6 @@
   "description": "Backup script for MySQL databases",
   "type": "library",
   "license": "MIT",
-  "version": "2.0.0",
   "keywords": [
     "php",
     "mysql",
