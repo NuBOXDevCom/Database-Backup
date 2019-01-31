@@ -2,27 +2,26 @@
 
 namespace NDC\DatabaseBackup;
 
-use const DIRECTORY_SEPARATOR;
+use const DIRECTORY_SEPARATOR as DS;
 use function dirname;
-use Dotenv\{
-    Dotenv, Validator
-};
+use Dotenv\Dotenv;
+use Dotenv\Exception\InvalidFileException;
+use Dotenv\Validator;
 use Exception;
 use Ifsnop\Mysqldump\Mysqldump;
 use JBZoo\Lang\Lang;
-use League\Flysystem\{
-    Adapter\Local,
-    AdapterInterface,
-    Filesystem
-};
+use League\Flysystem\Adapter\Local;
+use League\Flysystem\AdapterInterface;
+use League\Flysystem\FileNotFoundException;
+use League\Flysystem\Filesystem;
+use NDC\DatabaseBackup\Exception\NotAllowedException;
+use NDC\DatabaseBackup\Exception\UnsupportedPHPVersionException;
 use PDO;
-use \{
-    RuntimeException,
-    Swift_Attachment,
-    Swift_Mailer,
-    Swift_Message,
-    Swift_SmtpTransport
-};
+use RuntimeException;
+use SplFileObject;
+use Swift_Mailer;
+use Swift_Message;
+use Swift_SmtpTransport;
 
 /**
  * Class System
@@ -39,14 +38,6 @@ class System
      */
     private $errors = [];
     /**
-     * @var bool
-     */
-    private $isCli;
-    /**
-     * @var array
-     */
-    private $files = [];
-    /**
      * @var Lang
      */
     private $l10n;
@@ -59,12 +50,20 @@ class System
      * @var AdapterInterface
      */
     private $adapter;
+    /**
+     * @var string
+     */
+    private $localDir;
 
     /**
      * @param AdapterInterface $adapter
      * @param array $adapterOptions
      * @return System|null
-     * @throws \League\Flysystem\FileNotFoundException
+     * @throws FileNotFoundException
+     * @throws NotAllowedException
+     * @throws UnsupportedPHPVersionException
+     * @throws \JBZoo\Lang\Exception
+     * @throws \JBZoo\Path\Exception
      */
     public static function getInstance(?AdapterInterface $adapter = null, array $adapterOptions = []): ?System
     {
@@ -77,50 +76,47 @@ class System
 
     /**
      * System constructor.
-     * @param $adapter
-     * @param $adapterOptions
-     * @throws \League\Flysystem\FileNotFoundException
+     * @param AdapterInterface|null $adapter
+     * @param array $adapterOptions
+     * @throws FileNotFoundException
+     * @throws \JBZoo\Lang\Exception
+     * @throws \JBZoo\Path\Exception
+     * @throws UnsupportedPHPVersionException
+     * @throws NotAllowedException
      */
     private function __construct(?AdapterInterface $adapter, array $adapterOptions)
     {
-        $this->isCli = PHP_SAPI === 'cli';
-        try {
-            $this->loadConfigurationEnvironment();
-        } catch (\JBZoo\Lang\Exception $e) {
-            throw new RuntimeException($e);
-        } catch (\JBZoo\Path\Exception $e) {
-            throw new RuntimeException($e);
+        $this->localDir = dirname(__DIR__) . DS;
+        $this->loadConfigurationEnvironment();
+        $this->l10n = new Lang(env('LANGUAGE', 'en'));
+        $this->l10n->load($this->localDir . 'i18n', null, 'yml');
+        if (PHP_SAPI !== 'cli' && !(bool)env('ALLOW_EXECUTE_IN_WEB_BROWSER', false)) {
+            throw new NotAllowedException($this->l10n->translate('unauthorized_browser'));
+        }
+        if ((PHP_MAJOR_VERSION . PHP_MINOR_VERSION) < 72) {
+            throw new UnsupportedPHPVersionException($this->l10n->translate('unsupported_php_version'));
         }
         if ($adapter === null) {
-            $adapter = new Local(env('FILES_PATH_TO_SAVE_BACKUP'));
+            $adapter = new Local($this->localDir . env('DIRECTORY_TO_SAVE_LOCAL_BACKUP', 'MySQLBackups') . DS);
         }
+        CliFormatter::output($this->l10n->translate('app_started'), CliFormatter::COLOR_BLUE);
         $this->adapter = new Filesystem($adapter, $adapterOptions);
-        env('FILES_DAYS_HISTORY', 3) > 0 ?: $this->removeOldFilesByIntervalDays();
+        (int)env('FILES_DAYS_HISTORY', 3) > 0 ? $this->removeOldFilesByIntervalDays() : null;
     }
 
     /**
      * Start System initialization
      * @return void
      * @throws RuntimeException
-     * @throws \JBZoo\Lang\Exception
-     * @throws \JBZoo\Path\Exception
      */
-    public function loadConfigurationEnvironment(): void
+    private function loadConfigurationEnvironment(): void
     {
-        if (!file_exists(dirname(__DIR__) . DIRECTORY_SEPARATOR . '.env')) {
-            throw new RuntimeException('Please configure this script with .env file');
+        if (!file_exists($this->localDir . '.env')) {
+            throw new InvalidFileException('Please configure this script with .env file');
         }
-        $this->env = Dotenv::create(dirname(__DIR__), '.env');
+        $this->env = Dotenv::create($this->localDir, '.env');
         $this->env->overload();
         $this->checkRequirements();
-        $this->l10n = new Lang(env('LANGUAGE', 'en'));
-        $this->l10n->load(dirname(__DIR__) . DIRECTORY_SEPARATOR . 'i18n', null, 'yml');
-        if (!$this->isCli && !(bool)env('ALLOW_EXECUTE_IN_WEB_BROWSER', false)) {
-            die($this->l10n->translate('unauthorized_browser'));
-        }
-        if ((PHP_MAJOR_VERSION . PHP_MINOR_VERSION) < 72) {
-            die($this->l10n->translate('unsupported_php_version'));
-        }
     }
 
     /**
@@ -161,23 +157,45 @@ class System
 
     /**
      * Process to backup databases
+     * @param array $settings
      */
-    public function processBackup(): void
+    public function processBackup($settings = []): void
     {
+        CliFormatter::output($this->l10n->translate('started_backup'), CliFormatter::COLOR_CYAN);
+        $ext = 'sql';
+        if (array_key_exists('compress', $settings)) {
+            switch ($settings['compress']) {
+                case 'gzip':
+                case Mysqldump::GZIP:
+                    $ext = 'sql.gz';
+                    break;
+                case 'bzip2':
+                case Mysqldump::BZIP2:
+                    $ext = 'sql.bz2';
+                    break;
+                case 'none':
+                case Mysqldump::NONE:
+                    $ext = 'sql';
+                    break;
+            }
+        }
         foreach ($this->getDatabases() as $database) {
             if (!\in_array($database->Database, $this->getExcludedDatabases(), true)) {
-                $file_format = $database->Database . '-' . date($this->l10n->translate('date_format')) . '.sql';
+                $filename = $database->Database . '-' . date($this->l10n->translate('date_format')) . ".$ext";
                 try {
                     $dumper = new Mysqldump('mysql:host=' . env('DB_HOST',
                             'localhost') . ';dbname=' . $database->Database . ';charset=UTF8',
-                        env('DB_USER', 'root'), env('DB_PASSWORD', ''));
-                    $dumper->start('tmp' . DIRECTORY_SEPARATOR . $file_format);
-                    $this->adapter->copy(env('DIRECTORY_TO_SAVE_BACKUP',
-                            'MySQLBackups') . DIRECTORY_SEPARATOR . 'tmp' . DIRECTORY_SEPARATOR . $file_format,
-                        env('DIRECTORY_TO_SAVE_BACKUP', 'MySQLBackups'));
-                    $this->adapter->delete(env('DIRECTORY_TO_SAVE_BACKUP',
-                            'MySQLBackups') . DIRECTORY_SEPARATOR . 'tmp' . DIRECTORY_SEPARATOR . $file_format);
+                        env('DB_USER', 'root'), env('DB_PASSWORD', ''), $settings, [
+                            PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION
+                        ]);
+                    $tempFile = $this->createTempFile();
+                    $dumper->start($tempFile->getRealPath());
+                    $this->adapter->writeStream($filename, fopen($tempFile->getRealPath(), 'wb+'));
+                    $this->deleteTempFile($tempFile);
+                    CliFormatter::output($database->Database . ' ' . $this->l10n->translate('backuped_successfully'),
+                        CliFormatter::COLOR_GREEN);
                 } catch (Exception $e) {
+                    CliFormatter::output('!! ERROR::' . $e->getMessage() . ' !!', CliFormatter::COLOR_RED);
                     $this->errors[] = [
                         'dbname' => $database->Database,
                         'error_message' => $e->getMessage(),
@@ -187,6 +205,7 @@ class System
             }
         }
         $this->sendMail();
+        CliFormatter::output($this->l10n->translate('databases_backup_successfull'), CliFormatter::COLOR_PURPLE);
     }
 
     /**
@@ -219,9 +238,6 @@ class System
         if (empty($this->errors)) {
             if ((bool)env('MAIL_SEND_ON_SUCCESS', false)) {
                 $body = "<strong>{$this->l10n->translate('mail_db_backup_successfull')}</strong>";
-                if ((bool)env('MAIL_SEND_WITH_BACKUP_FILE', false)) {
-                    $body .= "<br><br>{$this->l10n->translate('mail_db_backup_file')}";
-                }
                 $message = (new Swift_Message($this->l10n->translate('mail_subject_on_success')))->setFrom(env('MAIL_FROM',
                     'system@my.website'),
                     env('MAIL_FROM_NAME', 'Website Mailer for Database Backup'))
@@ -230,12 +246,6 @@ class System
                     ->setBody($body)
                     ->setCharset('utf-8')
                     ->setContentType('text/html');
-                if ((bool)env('MAIL_SEND_WITH_BACKUP_FILE', false)) {
-                    foreach ($this->adapter->listFiles() as $file) {
-                        $attachment = Swift_Attachment::fromPath($file)->setContentType('application/sql');
-                        $message->attach($attachment);
-                    }
-                }
                 $mailer->send($message);
             }
         } elseif ((bool)env('MAIL_SEND_ON_ERROR', false)) {
@@ -263,17 +273,38 @@ class System
     }
 
     /**
-     * @throws \League\Flysystem\FileNotFoundException
+     * @throws FileNotFoundException
      */
     private function removeOldFilesByIntervalDays(): void
     {
+        CliFormatter::output($this->l10n->translate('cleaning_files'), CliFormatter::COLOR_CYAN);
         $files = $this->adapter->listContents();
         foreach ($files as $file) {
-            $absoluteFile = $file['path'] . DIRECTORY_SEPARATOR . $file['basename'];
-            $filetime = $this->adapter->getTimestamp($absoluteFile);
-            if ($filetime < strtotime("-{$this->params['days_interval']} days")) {
-                $this->adapter->delete($absoluteFile);
+            $filetime = $this->adapter->getTimestamp($file['path']);
+            $daysInterval = (int)env('FILES_DAYS_HISTORY', 3);
+            if ($filetime < strtotime("-{$daysInterval} days")) {
+                $this->adapter->delete($file['path']);
             }
         }
+        CliFormatter::output($this->l10n->translate('cleaned_files_success'), CliFormatter::COLOR_GREEN);
+    }
+
+    /**
+     * @return SplFileObject
+     */
+    private function createTempFile(): SplFileObject
+    {
+        $file = tmpfile();
+        $name = stream_get_meta_data($file)['uri'];
+        return new SplFileObject($name, 'w+');
+    }
+
+    /**
+     * @param \SplFileInfo $file
+     * @return bool
+     */
+    protected function deleteTempFile(\SplFileInfo $file): bool
+    {
+        return unlink($file->getRealPath());
     }
 }

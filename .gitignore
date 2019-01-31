@@ -1,7 +1,6 @@
-Backups/
+MySQLBackups/
 .env
 *~
 composer.lock
 vendor/
 .idea/
-reports/
