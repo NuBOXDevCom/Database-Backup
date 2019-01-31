@@ -14,6 +14,7 @@ use League\Flysystem\Adapter\Local;
 use League\Flysystem\AdapterInterface;
 use League\Flysystem\FileNotFoundException;
 use League\Flysystem\Filesystem;
+use League\Flysystem\FilesystemInterface;
 use NDC\DatabaseBackup\Exception\NotAllowedException;
 use NDC\DatabaseBackup\Exception\UnsupportedPHPVersionException;
 use PDO;
@@ -26,6 +27,7 @@ use Swift_SmtpTransport;
 /**
  * Class System
  * @package NDC\DatabaseBackup
+ * @todo Add possibility to switch year/day/hour/minute in CleanerFileSequence
  */
 class System
 {
@@ -41,15 +43,14 @@ class System
      * @var Lang
      */
     private $l10n;
-
     /**
      * @var System|null
      */
     private static $_instance;
     /**
-     * @var AdapterInterface
+     * @var FilesystemInterface
      */
-    private $adapter;
+    private $fs;
     /**
      * @var string
      */
@@ -86,21 +87,21 @@ class System
      */
     private function __construct(?AdapterInterface $adapter, array $adapterOptions)
     {
-        $this->localDir = dirname(__DIR__) . DS;
+        $this->setLocalDir(dirname(__DIR__) . DS);
         $this->loadConfigurationEnvironment();
-        $this->l10n = new Lang(env('LANGUAGE', 'en'));
-        $this->l10n->load($this->localDir . 'i18n', null, 'yml');
+        $this->setL10n(new Lang(env('LANGUAGE', 'en')));
+        $this->getL10n()->load($this->getLocalDir() . 'i18n', null, 'yml');
         if (PHP_SAPI !== 'cli' && !(bool)env('ALLOW_EXECUTE_IN_WEB_BROWSER', false)) {
-            throw new NotAllowedException($this->l10n->translate('unauthorized_browser'));
+            throw new NotAllowedException($this->getL10n()->translate('unauthorized_browser'));
         }
         if ((PHP_MAJOR_VERSION . PHP_MINOR_VERSION) < 72) {
-            throw new UnsupportedPHPVersionException($this->l10n->translate('unsupported_php_version'));
+            throw new UnsupportedPHPVersionException($this->getL10n()->translate('unsupported_php_version'));
         }
         if ($adapter === null) {
-            $adapter = new Local($this->localDir . env('DIRECTORY_TO_SAVE_LOCAL_BACKUP', 'MySQLBackups') . DS);
+            $adapter = new Local($this->getLocalDir() . env('DIRECTORY_TO_SAVE_LOCAL_BACKUP', 'MySQLBackups') . DS);
         }
-        CliFormatter::output($this->l10n->translate('app_started'), CliFormatter::COLOR_BLUE);
-        $this->adapter = new Filesystem($adapter, $adapterOptions);
+        CliFormatter::output($this->getL10n()->translate('app_started'), CliFormatter::COLOR_BLUE);
+        $this->setFs($adapter, $adapterOptions);
         (int)env('FILES_DAYS_HISTORY', 3) > 0 ? $this->removeOldFilesByIntervalDays() : null;
     }
 
@@ -111,11 +112,11 @@ class System
      */
     private function loadConfigurationEnvironment(): void
     {
-        if (!file_exists($this->localDir . '.env')) {
+        if (!file_exists($this->getLocalDir() . '.env')) {
             throw new InvalidFileException('Please configure this script with .env file');
         }
-        $this->env = Dotenv::create($this->localDir, '.env');
-        $this->env->overload();
+        $this->setEnv(Dotenv::create($this->getLocalDir(), '.env'));
+        $this->getEnv()->overload();
         $this->checkRequirements();
     }
 
@@ -124,7 +125,7 @@ class System
      */
     private function checkRequirements(): Validator
     {
-        return $this->env->required([
+        return $this->getEnv()->required([
             'DB_HOST',
             'DB_USER',
             'DB_PASSWORD'
@@ -181,7 +182,7 @@ class System
         }
         foreach ($this->getDatabases() as $database) {
             if (!\in_array($database->Database, $this->getExcludedDatabases(), true)) {
-                $filename = $database->Database . '-' . date($this->l10n->translate('date_format')) . ".$ext";
+                $filename = $database->Database . '-' . date($this->getL10n()->translate('date_format')) . ".$ext";
                 try {
                     $dumper = new Mysqldump('mysql:host=' . env('DB_HOST',
                             'localhost') . ';dbname=' . $database->Database . ';charset=UTF8',
@@ -190,9 +191,9 @@ class System
                         ]);
                     $tempFile = $this->createTempFile();
                     $dumper->start($tempFile->getRealPath());
-                    $this->adapter->writeStream($filename, fopen($tempFile->getRealPath(), 'wb+'));
+                    $this->getFs()->writeStream($filename, fopen($tempFile->getRealPath(), 'wb+'));
                     $this->deleteTempFile($tempFile);
-                    CliFormatter::output($database->Database . ' ' . $this->l10n->translate('backuped_successfully'),
+                    CliFormatter::output($database->Database . ' ' . $this->getL10n()->translate('backuped_successfully'),
                         CliFormatter::COLOR_GREEN);
                 } catch (Exception $e) {
                     CliFormatter::output('!! ERROR::' . $e->getMessage() . ' !!', CliFormatter::COLOR_RED);
@@ -205,7 +206,7 @@ class System
             }
         }
         $this->sendMail();
-        CliFormatter::output($this->l10n->translate('databases_backup_successfull'), CliFormatter::COLOR_PURPLE);
+        CliFormatter::output($this->getL10n()->translate('databases_backup_successfull'), CliFormatter::COLOR_PURPLE);
     }
 
     /**
@@ -237,7 +238,7 @@ class System
         $mailer = new Swift_Mailer($smtpTransport);
         if (empty($this->errors)) {
             if ((bool)env('MAIL_SEND_ON_SUCCESS', false)) {
-                $body = "<strong>{$this->l10n->translate('mail_db_backup_successfull')}</strong>";
+                $body = "<strong>{$this->getL10n()->translate('mail_db_backup_successfull')}</strong>";
                 $message = (new Swift_Message($this->l10n->translate('mail_subject_on_success')))->setFrom(env('MAIL_FROM',
                     'system@my.website'),
                     env('MAIL_FROM_NAME', 'Website Mailer for Database Backup'))
@@ -249,18 +250,18 @@ class System
                 $mailer->send($message);
             }
         } elseif ((bool)env('MAIL_SEND_ON_ERROR', false)) {
-            $body = "<strong>{$this->l10n->translate('mail_db_backup_failed')}}:</strong><br><br><ul>";
+            $body = "<strong>{$this->getL10n()->translate('mail_db_backup_failed')}}:</strong><br><br><ul>";
             foreach ($this->errors as $error) {
                 $body .= "<li>
                         <ul>
-                            <li>{$this->l10n->translate('database')}: {$error['dbname']}</li>
-                            <li>{$this->l10n->translate('error_code')}: {$error['error_code']}</li>
-                            <li>{$this->l10n->translate('error_message')}: {$error['error_message']}</li>
+                            <li>{$this->getL10n()->translate('database')}: {$error['dbname']}</li>
+                            <li>{$this->getL10n()->translate('error_code')}: {$error['error_code']}</li>
+                            <li>{$this->getL10n()->translate('error_message')}: {$error['error_message']}</li>
                         </ul>
                        </li>";
             }
             $body .= '</ul>';
-            $message = (new Swift_Message($this->l10n->translate('mail_subject_on_error')))->setFrom(env('MAIL_FROM',
+            $message = (new Swift_Message($this->getLocalDir()->translate('mail_subject_on_error')))->setFrom(env('MAIL_FROM',
                 'system@my.website'),
                 env('MAIL_FROM_NAME', 'Website Mailer for Database Backup'))
                 ->setTo(env('MAIL_TO'),
@@ -278,15 +279,15 @@ class System
     private function removeOldFilesByIntervalDays(): void
     {
         CliFormatter::output($this->l10n->translate('cleaning_files'), CliFormatter::COLOR_CYAN);
-        $files = $this->adapter->listContents();
+        $files = $this->getFs()->listContents();
         foreach ($files as $file) {
-            $filetime = $this->adapter->getTimestamp($file['path']);
+            $filetime = $this->getFs()->getTimestamp($file['path']);
             $daysInterval = (int)env('FILES_DAYS_HISTORY', 3);
             if ($filetime < strtotime("-{$daysInterval} days")) {
-                $this->adapter->delete($file['path']);
+                $this->getFs()->delete($file['path']);
             }
         }
-        CliFormatter::output($this->l10n->translate('cleaned_files_success'), CliFormatter::COLOR_GREEN);
+        CliFormatter::output($this->getL10n()->translate('cleaned_files_success'), CliFormatter::COLOR_GREEN);
     }
 
     /**
@@ -306,5 +307,86 @@ class System
     protected function deleteTempFile(\SplFileInfo $file): bool
     {
         return unlink($file->getRealPath());
+    }
+
+    /**
+     * @return string
+     */
+    public function getLocalDir(): string
+    {
+        return $this->localDir;
+    }
+
+    /**
+     * @param string $localDir
+     */
+    public function setLocalDir(string $localDir): void
+    {
+        $this->localDir = $localDir;
+    }
+
+    /**
+     * @return Dotenv
+     */
+    public function getEnv(): Dotenv
+    {
+        return $this->env;
+    }
+
+    /**
+     * @param Dotenv $env
+     */
+    public function setEnv(Dotenv $env): void
+    {
+        $this->env = $env;
+    }
+
+    /**
+     * @return array
+     */
+    public function getErrors(): array
+    {
+        return $this->errors;
+    }
+
+    /**
+     * @param array $errors
+     */
+    public function setErrors(array $errors): void
+    {
+        $this->errors = $errors;
+    }
+
+    /**
+     * @return Lang
+     */
+    public function getL10n(): Lang
+    {
+        return $this->l10n;
+    }
+
+    /**
+     * @param Lang $l10n
+     */
+    public function setL10n(Lang $l10n): void
+    {
+        $this->l10n = $l10n;
+    }
+
+    /**
+     * @return FilesystemInterface
+     */
+    public function getFs(): FilesystemInterface
+    {
+        return $this->fs;
+    }
+
+    /**
+     * @param AdapterInterface|null $adapter
+     * @param array $adapterOptions
+     */
+    public function setFs(?AdapterInterface $adapter, array $adapterOptions): void
+    {
+        $this->fs = new Filesystem($adapter, $adapterOptions);
     }
 }
