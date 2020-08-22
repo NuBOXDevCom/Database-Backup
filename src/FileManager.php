@@ -29,7 +29,7 @@ class FileManager
         (new System())->loadConfigurationEnvironment();
         $this->params = [
             'files_path' => getenv('FILES_PATH_TO_SAVE_BACKUP'),
-            'days_interval' => getenv('FILES_DAYS_HISTORY')
+            'days_interval' => (int)getenv('FILES_DAYS_HISTORY')
         ];
         $this->_getFiles();
     }

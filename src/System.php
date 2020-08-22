@@ -66,7 +66,7 @@ class System
         if (!$this->isCli && !(bool)getenv('ALLOW_EXECUTE_IN_HTTP_BROWSER')) {
             die('Unauthorized to execute this script in your browser !');
         }
-        if (PHP_VERSION_ID < 70000) {
+        if (PHP_VERSION_ID < 74000) {
             die('PHP VERSION IS NOT SUPPORTED, PLEASE USE THIS SCRIPT WITH TO PHP 7.4 VERSION OR HIGHTER');
         }
     }
@@ -97,14 +97,14 @@ class System
     }
 
     /**
-     * @return array|string
+     * @return array
      */
-    public function getExcludedDatabases()
+    public function getExcludedDatabases(): array
     {
         if (empty(trim(getenv('DB_EXCLUDE_DATABASES')))) {
             return [];
         }
-        return $this->parseAndSanitize(getenv('DB_EXCLUDE_DATABASES'));
+        return (array)$this->parseAndSanitize(getenv('DB_EXCLUDE_DATABASES'));
     }
 
     /**
@@ -124,8 +124,9 @@ class System
 
     /**
      * Process to backup databases
+     * @return bool
      */
-    public function process(): void
+    public function process(): bool
     {
         foreach ($this->getDatabases() as $database) {
             if (!\in_array($database->Database, $this->getExcludedDatabases(), true)) {
@@ -143,10 +144,12 @@ class System
                         'error_message' => $e->getMessage(),
                         'error_code' => $e->getCode()
                     ];
+                    return false;
                 }
             }
         }
         $this->sendMail();
+        return true;
     }
 
     /**
@@ -173,7 +176,7 @@ class System
      */
     private function sendMail(): void
     {
-        $smtpTransport = new Swift_SmtpTransport(getenv('MAIL_SMTP_HOST'), (int) getenv('MAIL_SMTP_PORT'));
+        $smtpTransport = new Swift_SmtpTransport(getenv('MAIL_SMTP_HOST'), (int)getenv('MAIL_SMTP_PORT'));
         $smtpTransport->setUsername(getenv('MAIL_SMTP_USER'))->setPassword(getenv('MAIL_SMTP_PASSWORD'));
         $mailer = new Swift_Mailer($smtpTransport);
         if (empty($this->errors)) {

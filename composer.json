@@ -35,7 +35,6 @@
     "ifsnop/mysqldump-php": "^2.9",
     "swiftmailer/swiftmailer": "^6.2",
     "vlucas/phpdotenv": "^5.1",
-    "symfony/yaml": "^5.1",
     "ext-pdo": "*"
   },
   "autoload": {
