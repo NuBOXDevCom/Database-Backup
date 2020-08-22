@@ -173,7 +173,7 @@ class System
      */
     private function sendMail(): void
     {
-        $smtpTransport = new Swift_SmtpTransport(getenv('MAIL_SMTP_HOST'), getenv('MAIL_SMTP_PORT'));
+        $smtpTransport = new Swift_SmtpTransport(getenv('MAIL_SMTP_HOST'), (int) getenv('MAIL_SMTP_PORT'));
         $smtpTransport->setUsername(getenv('MAIL_SMTP_USER'))->setPassword(getenv('MAIL_SMTP_PASSWORD'));
         $mailer = new Swift_Mailer($smtpTransport);
         if (empty($this->errors)) {
