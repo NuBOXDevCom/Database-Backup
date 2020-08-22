@@ -66,7 +66,7 @@ class System
         if (!$this->isCli && !(bool)getenv('ALLOW_EXECUTE_IN_HTTP_BROWSER')) {
             die('Unauthorized to execute this script in your browser !');
         }
-        if (PHP_VERSION_ID < 74000) {
+        if (PHP_VERSION_ID < 70400) {
             die('PHP VERSION IS NOT SUPPORTED, PLEASE USE THIS SCRIPT WITH TO PHP 7.4 VERSION OR HIGHTER');
         }
     }
