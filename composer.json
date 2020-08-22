@@ -1,50 +1,50 @@
 {
-    "name": "nuboxdevcom/database-backup",
-    "description": "Backup script for MySQL databases",
-    "type": "library",
-    "license": "MIT",
-    "keywords": [
-        "php",
-        "mysql",
-        "library",
-        "nuboxdevcom",
-        "nubox",
-        "backup",
-        "database",
-        "opensource",
-        "free",
-        "script"
-    ],
-    "homepage": "https://www.github.com/NuBOXDevCom/Database-Backup",
-    "authors": [
-        {
-            "name": "NuBOX DevCom",
-            "email": "slye@nubox.fr",
-            "homepage": "http://www.sylvain-bordier.fr",
-            "role": "Developer"
-        }
-    ],
-    "support": {
-        "issues": "http://github.com/NuBOXDevCom/Database-Backup/issues",
-        "source": "https://www.github.com/NuBOXDevCom/Database-Backup"
-    },
-    "minimum-stability": "stable",
-    "prefer-stable": true,
-    "require": {
-        "php": ">= 7.1",
-        "ifsnop/mysqldump-php": "^2.3",
-        "swiftmailer/swiftmailer": "^6.0",
-        "vlucas/phpdotenv": "^2.4",
-        "jbzoo/lang": "^1.0",
-        "symfony/yaml": "^4.0"
-    },
-    "autoload": {
-        "psr-4": {
-            "NDC\\": "src/"
-        }
-    },
-    "scripts": {
-        "post-install-cmd": "php -r \"copy('.env-dist', '.env');\"",
-        "post-update-cmd": "@composer dumpautoload -o"
+  "name": "nuboxdevcom/database-backup",
+  "description": "Backup script for MySQL databases",
+  "type": "library",
+  "license": "MIT",
+  "keywords": [
+    "php",
+    "mysql",
+    "library",
+    "nuboxdevcom",
+    "nubox",
+    "backup",
+    "database",
+    "opensource",
+    "free",
+    "script"
+  ],
+  "homepage": "https://www.github.com/NuBOXDevCom/Database-Backup",
+  "authors": [
+    {
+      "name": "NuBOX DevCom",
+      "email": "slye@nubox.fr",
+      "homepage": "https://www.sylvain-bordier.fr",
+      "role": "Developer"
     }
+  ],
+  "support": {
+    "issues": "http://github.com/NuBOXDevCom/Database-Backup/issues",
+    "source": "https://www.github.com/NuBOXDevCom/Database-Backup"
+  },
+  "minimum-stability": "stable",
+  "prefer-stable": true,
+  "require": {
+    "php": ">= 7.4",
+    "ifsnop/mysqldump-php": "^2.9",
+    "swiftmailer/swiftmailer": "^6.2",
+    "vlucas/phpdotenv": "^5.1",
+    "symfony/yaml": "^5.1",
+    "ext-pdo": "*"
+  },
+  "autoload": {
+    "psr-4": {
+      "NDC\\": "src/"
+    }
+  },
+  "scripts": {
+    "post-install-cmd": "php -r \"copy('.env-dist', '.env');\"",
+    "post-update-cmd": "@composer dumpautoload -o"
+  }
 }
